@@ -1,1129 +1,223 @@
+// Define the file path
+const filePath = "actions.txt";
+
+// Initialize an empty array to store actions
+let actions = [];
+
+function writeToFile(content) {
+  const fileName = "actions.txt";
+  window.resolveLocalFileSystemURL(
+    cordova.file.externalDataDirectory,
+    function (dirEntry) {
+      dirEntry.getFile(
+        fileName,
+        { create: true },
+        function (fileEntry) {
+          fileEntry.createWriter(function (fileWriter) {
+            fileWriter.onwriteend = function () {
+              console.log("Write completed.");
+            };
+
+            fileWriter.onerror = function (e) {
+              console.log("Write failed: " + e.toString());
+            };
+
+            const blob = new Blob([content], { type: "text/plain" });
+            fileWriter.write(blob);
+          }, errorHandler);
+        },
+        errorHandler
+      );
+    },
+    errorHandler
+  );
+}
+
+function errorHandler(error) {
+  console.error("File error:", error);
+}
+
 let playerHeigth = window.innerHeight;
 let playerWidth = window.innerWidth;
+let GameID;
+let UserID;
+let UserPassword;
+const xhr = new XMLHttpRequest();
+xhr.open("GET", "config.json", false); // false makes the request synchronous
+xhr.send();
 
-//configs
-let config
-let MAP_SIZE = 6;
-let MAP_WIDTH = playerWidth;
-let MAP_HEIGHT = playerHeigth;
-let app;
-let menu;
-let colors = ['./img/beer.png', './img/coffee.png', './img/martini.png', './img/coffee-mug.png', './img/teapot.png'];
-let onOrDisable = ['./img/sound-off.png', './img/sound-on.png'];
-let restart = ['./img/restart.png'];
-let restartBtn;
-let soundBtn;
-let playerClick = 1;
-let isPlayerClick = false;
-let tempObj = {};
-let players = [];
-let container;
-let gameTime = 30;
-let time;
-let updateInterval;
-let mobileAdaptive = 1; //коэффициент для адаптивности размера игового поля
-
-//Text
-let scoreText;
-let lastScoreText;
-let timerText;
-
-// sounds
-let mainSound;
-let goodChoiceSound;
-let noGoodChoiceSound;
-let theEndSound;
-let isSoundPlay = false;
-
-window.onload = function(){
-    initChooseTime();
+if (xhr.status === 200) {
+  const data = JSON.parse(xhr.responseText);
+  GameID = data.GameID;
+  console.log("GameID:", GameID);
+  getGameID(GameID);
+} else {
+  console.error("Error fetching config.json:", xhr.status);
 }
 
-function initChooseTime(){
-    container = document.getElementById('container');
-    config = {
-        width: playerWidth,
-        height: playerHeigth,
-        backgroundColor: 0x131317,
-    }
-
-    menu = new PIXI.Application(config);
-    container.appendChild(menu.view);
-
-    if(container.firstChild != null){
-        let child = container.firstChild;
-        container.removeChild(child);
-    }
-
-    container.appendChild(menu.view);
-
-    let timeSceneText = [];
-    timeSceneText[0] = new PIXI.Sprite.from('./img/chooseTime.png');
-    timeSceneText[0].anchor.set(0.5);
-    timeSceneText[0].x = config.width / 2;
-    timeSceneText[0].y = config.height * 0.2;
-    timeSceneText[0].Animation = new TweenMax.to(timeSceneText[0].scale, 1, {
-        x: 1.3, 
-        y: 1.3, 
-        repeat: -1,
-        repeatDelay: 0.02,
-        ease: "power2.inOut",
-        yoyo: true,
-    });
-    menu.stage.addChild(timeSceneText[0]);
-
-    timeSceneText[1] = new PIXI.Text(`Choose game time\n(seconds)`,{fontFamily : 'Arial', fontSize: '2rem', fill : 0xFFFFFF, align: 'center'});
-    timeSceneText[1].anchor.set(0.5);
-    timeSceneText[1].x = config.width / 2;
-    timeSceneText[1].y = config.height * 0.35;
-    menu.stage.addChild(timeSceneText[1]);
-
-    timeSceneText[2] = new PIXI.Text(`30`,{fontFamily : 'Arial', fontSize: '2rem', fill : 0xFFFFFF});
-    timeSceneText[2].anchor.set(0.5);
-    timeSceneText[2].x = config.width / 2;
-    timeSceneText[2].y = config.height * 0.53;
-    timeSceneText[2].interactive = true;
-    timeSceneText[2].on('pointerdown', ()=>{
-        gameTime = 30;
-        timeSceneText[2].Animation = new TweenMax.to(timeSceneText[2], 0.7, {
-            x: timeSceneText[2].x + 100, 
-            alpha: 0,
-            ease: "power2.inOut",
-        });
-        setTimeout(()=>{
-            clearInitChooseTime(timeSceneText);
-        }, 700); 
-    });
-    menu.stage.addChild(timeSceneText[2]);
-
-    timeSceneText[3] = new PIXI.Text(`60`,{fontFamily : 'Arial', fontSize: '2rem', fill : 0xFFFFFF});
-    timeSceneText[3].anchor.set(0.5);
-    timeSceneText[3].x = config.width / 2;
-    timeSceneText[3].y = config.height * 0.63;
-    timeSceneText[3].interactive = true;
-    timeSceneText[3].on('pointerdown', ()=>{
-        gameTime = 60;
-        timeSceneText[3].Animation = new TweenMax.to(timeSceneText[3], 0.7, {
-            x: timeSceneText[3].x + 100, 
-            alpha: 0,
-            ease: "power2.inOut",
-        });
-        setTimeout(()=>{
-            clearInitChooseTime(timeSceneText);
-        }, 700); 
-    });
-    menu.stage.addChild(timeSceneText[3]);
-
-    timeSceneText[4] = new PIXI.Text(`120`,{fontFamily : 'Arial', fontSize: '2rem', fill : 0xFFFFFF});
-    timeSceneText[4].anchor.set(0.5);
-    timeSceneText[4].x = config.width / 2;
-    timeSceneText[4].y = config.height * 0.73;
-    timeSceneText[4].interactive = true;
-    timeSceneText[4].on('pointerdown', ()=>{
-        gameTime = 120;
-        timeSceneText[4].Animation = new TweenMax.to(timeSceneText[4], 0.7, {
-            x: timeSceneText[4].x + 100, 
-            alpha: 0,
-            ease: "power2.inOut",
-        });
-        setTimeout(()=>{
-            clearInitChooseTime(timeSceneText);
-        }, 700); 
-    });
-    menu.stage.addChild(timeSceneText[4]);
-    
+function getGameID(GameID) {
+  console.log("GameID from config.json:", GameID);
 }
 
-function clearInitChooseTime(timeSceneText){
-    timeSceneText.forEach((el)=>{
-        el.Animation = new TweenMax.to(el, 0.700, {
-            x: el.x - 100, 
-            alpha: 0,
-            ease: "power2.inOut",
-        });
+window.onload = function () {
+  // Add event listener to the registration form submission
+  document
+    .getElementById("registration-form")
+    .addEventListener("submit", function (event) {
+      event.preventDefault(); // Prevent default form submission
+
+      // Get user input
+      UserID = document.getElementById("email").value;
+      UserPassword = document.getElementById("password").value;
+
+      document.getElementById("registration-container").style.display = "none";
+
+      // Proceed with the game
+      initChooseTime();
     });
-    setTimeout(initChooseGameSize, 700);
-}
+};
 
-function initChooseGameSize(){
-    let sizeSceneText = [];
-    sizeSceneText[0] = new PIXI.Sprite.from('./img/mapSize.png');
-    sizeSceneText[1] = new PIXI.Text(`Choose game map size`,{fontFamily : 'Arial', fontSize: '1.8rem', fill : 0xFFFFFF, align: 'center'});
-    sizeSceneText[2] = new PIXI.Text(`6 * 6`,{fontFamily : 'Arial', fontSize: '2rem', fill : 0xFFFFFF});
-    sizeSceneText[3] = new PIXI.Text(`7 * 7`,{fontFamily : 'Arial', fontSize: '2rem', fill : 0xFFFFFF});
-    sizeSceneText[4] = new PIXI.Text(`8 * 8`,{fontFamily : 'Arial', fontSize: '2rem', fill : 0xFFFFFF});
+function initChooseTime() {
+  container = document.getElementById("container");
+  let config = {
+    width: playerWidth,
+    height: playerHeigth + 300,
+    backgroundColor: 0x000000,
+  };
 
-    sizeSceneText.forEach(el =>{
-        el.alpha = 0;
-    });
-    
-    sizeSceneText[0].anchor.set(0.5);
-    sizeSceneText[0].x = config.width / 2 - 100;
-    sizeSceneText[0].y = config.height * 0.2;
-    sizeSceneText[0].Animation = new TweenMax.to(sizeSceneText[0].scale, 1, {
-        x: 1.3, 
-        y: 1.3, 
-        repeat: -1,
-        repeatDelay: 0.02,
-        ease: "power2.inOut",
-        yoyo: true,
-    });
-    menu.stage.addChild(sizeSceneText[0]);
+  const app = new PIXI.Application(config);
+  container.appendChild(app.view);
+  if (container.firstChild != null) {
+    let child = container.firstChild;
+    container.removeChild(child);
+  }
 
-    sizeSceneText[1].anchor.set(0.5);
-    sizeSceneText[1].x = config.width / 2 - 100;
-    sizeSceneText[1].y = config.height * 0.35;
-    menu.stage.addChild(sizeSceneText[1]);
+  container.appendChild(app.view);
+  // app.renderer.resize(window.innerWidth, window.innerHeight);
+  app.renderer.view.style.position = "absolute";
+  let levelData = [];
+  const loader = PIXI.Loader.shared;
 
-    sizeSceneText[2].anchor.set(0.5);
-    sizeSceneText[2].x = config.width / 2 - 100;
-    sizeSceneText[2].y = config.height * 0.43;
-    sizeSceneText[2].interactive = true;
-    sizeSceneText[2].on('pointerdown', ()=>{
-        MAP_SIZE = 6;
-        // MAP_WIDTH = 410;
-        // MAP_HEIGHT = 450;
-        sizeSceneText[2].Animation = new TweenMax.to(sizeSceneText[2], 0.7, {
-            x: sizeSceneText[2].x + 100, 
-            alpha: 0,
-            ease: "power2.inOut",
-        });
-        setTimeout(()=>{
-            clearInitChooseGameSize(sizeSceneText);
-        }, 700); 
-        
-    });
-    menu.stage.addChild(sizeSceneText[2]);
+  loader.add("textFile", "./levels.txt").load((loader, resources) => {
+    const textContent = resources.textFile.data;
+    levelData = textContent.split("\n").map((row) => row.split(","));
+    console.log(levelData);
 
-    sizeSceneText[3].anchor.set(0.5);
-    sizeSceneText[3].x = config.width / 2 - 100;
-    sizeSceneText[3].y = config.height * 0.53;
-    sizeSceneText[3].interactive = true;
-    sizeSceneText[3].on('pointerdown', ()=>{
-        MAP_SIZE = 7;
-        sizeSceneText[3].Animation = new TweenMax.to(sizeSceneText[3], 0.7, {
-            x: sizeSceneText[3].x + 100, 
-            alpha: 0,
-            ease: "power2.inOut",
-        });
-        setTimeout(()=>{
-            clearInitChooseGameSize(sizeSceneText);
-        }, 700);
-    });
-    menu.stage.addChild(sizeSceneText[3]);
+    let blob = new Blob([], { type: "text/plain" });
+    // Helper function to load images for a level
+    function loadLevelImages(levelIndex) {
+      const levelImages = levelData[levelIndex].slice(1, 8); // Get paths to images for the current level
+      const images = [];
 
-    sizeSceneText[4].anchor.set(0.5);
-    sizeSceneText[4].x = config.width / 2 - 100;
-    sizeSceneText[4].y = config.height * 0.63;
-    sizeSceneText[4].interactive = true;
-    sizeSceneText[4].on('pointerdown', ()=>{
-        MAP_SIZE = 8;
-        sizeSceneText[4].Animation = new TweenMax.to(sizeSceneText[4], 0.7, {
-            x: sizeSceneText[4].x + 100, 
-            alpha: 0,
-            ease: "power2.inOut",
-        });
-        setTimeout(()=>{
-            clearInitChooseGameSize(sizeSceneText);
-        }, 700);
-    });
+      // Set the desired size for images relative to the screen dimensions
+      const imageSize = Math.min(playerWidth, playerHeigth) / 4;
+      const imageSpacing = imageSize * 0.3; // Adjust the spacing between images
 
-    showChooseGameSize(sizeSceneText);
-
-    menu.stage.addChild(sizeSceneText[4]);
-}
-
-function showChooseGameSize(sizeSceneText){
-    sizeSceneText.forEach((el) =>{
-        el.Animation = new TweenMax.to(el, 0.7, {
-            alpha: 1,
-            x: el.x + 100, 
-            ease: "power2.inOut",
-        });
-    })
-}
-
-function clearInitChooseGameSize(sizeSceneText){
-    sizeSceneText.forEach((el)=>{
-        el.Animation = new TweenMax.to(el, 0.7, {
-            x: el.x - 100, 
-            alpha: 0,
-            ease: "power2.inOut",
-        });
-    });
-    setTimeout(startGame, 700);
-}
-
-// GamePlay
-function startGame(){
-    let isPlay = true;
-    time = gameTime;
-
-    config = {
-        width: MAP_WIDTH,
-        height: MAP_HEIGHT,
-        backgroundColor: 0x131317,
-    }
-
-    app = new PIXI.Application(config);
-
-    //adaptive
-    console.log("adaptive = ", playerWidth);
-    if(playerWidth < 570 && playerWidth > 504){
-        console.log('570');
-        mobileAdaptive = 0.8;// не влазит 1 элемент
-    }else if(playerWidth < 504 && playerWidth > 440){
-        mobileAdaptive = 0.75; //не влазит 2 элемента
-    }else if(playerWidth < 440){
-        mobileAdaptive = 0.7;//не влазит 3 элемента
-    }
-    //sound
-    if(mainSound == null){
-        initSound();
-    }
-
-    //soundBtn
-    initSoundBtn();
-
-    players = []; //reset players
-    //createMap
-    createMap(players, colors); 
-    
-    update();
-
-    // timer
-    initTimerText();
-    startTimer();
-    
-    // score
-    initScore();
-    
-    if(container.firstChild != null){
-        let child = container.firstChild;
-        container.removeChild(child);
-    }
-
-    container.appendChild(app.view);
-}
-
-function update(){
-    updateInterval = setInterval(()=>{  
-        if(isThreeUpdate()){
-            setTimeout(()=>{
-                setTimeout(()=>{
-                    deleteThree(); 
-                    deadAnimation(); 
-                }, 550); //400 //500
-                
-                setTimeout(()=>{
-                    fallAnimationUpdate();
-                    fallObjs();
-                    setTimeout(renderMapUpdate, 510);
-                }, 550); //550
-           }, 500) //500
-        }else{
-            isPlayerClick = false;
+      // Calculate positions for each image based on the desired layout
+      const positions = [];
+      for (let i = 0; i < levelImages.length; i++) {
+        if (i !== levelImages.length - 1) {
+          const positionX =
+            (i % 2) * (imageSize + imageSpacing) +
+            playerWidth / 4 +
+            imageSpacing;
+          const positionY =
+            Math.floor(i / 2) * (imageSize + imageSpacing) + playerHeigth / 4;
+          positions.push({ x: positionX, y: positionY });
+        } else {
+          const positionX =
+            0.5 * (imageSize + imageSpacing) + playerWidth / 4 + imageSpacing;
+          const positionY =
+            Math.floor(i / 2) * (imageSize + imageSpacing) + playerHeigth / 4;
+          positions.push({ x: positionX, y: positionY });
         }
-    }, 1300);//1200
-}
+      }
 
+      for (let i = 0; i < levelImages.length; i++) {
+        const imagePath = levelImages[i];
+        const imageSprite = new PIXI.Sprite.from(imagePath);
 
-function initRestartBtn(){
-    restartBtn = new PIXI.Sprite.from(restart[0]);
-    restartBtn.anchor.set(0.5, 0.5);
-    restartBtn.x = playerWidth / 2;
-    restartBtn.y = playerHeigth / 2;
-    restartBtn.interactive = true;
-    restartBtn.on('pointerdown', ()=>{
-        isPlayerClick = false;
-        initChooseTime();
-    });
-    restartBtn.Animation = new TweenMax.to(restartBtn.scale, 1, {
-        x: 1.3, 
-        y: 1.3, 
-        repeat: -1,
-        repeatDelay: 0.02,
-        ease: "power2.inOut",
-        yoyo: true,
-    });
-    app.stage.addChild(restartBtn);
-}
+        // Scale and position images
+        imageSprite.width = imageSize * 1.2;
+        imageSprite.height = imageSize * 1.2;
+        imageSprite.anchor.set(0.5);
+        imageSprite.x = positions[i].x;
+        imageSprite.y = positions[i].y;
 
-function gameOver(){
-    clearInterval(updateInterval);
-    if(isSoundPlay){
-        mainSound.pause();
-        theEndSound.play();
-        setTimeout(()=>{
-            mainSound.play();
-        }, 2700);
-    }
+        // Add interactivity
+        if (i !== levelImages.length - 1) {
+          imageSprite.interactive = true;
+          imageSprite.buttonMode = true;
+          imageSprite.on("pointerdown", () => {
+            let dt = new Date().toISOString();
+            //make dt in this format: year/month/day hour:minute:second
+            dt = dt.replace(/-/g, "/");
+            dt = dt.replace("T", " ");
+            dt = dt.slice(0, 19);
+            const pictureClicked = i + 1;
+            console.log(levelData[levelIndex][8]);
+            const isCorrect = pictureClicked == levelData[levelIndex][8];
+            const action = `User-id:${UserID}, Game-id:${GameID}, dt:${dt}, L:${
+              levelIndex + 1
+            }, P:${pictureClicked}, C:${isCorrect ? "correct" : "wrong"}\n`;
 
+            // Append the action to the actions array
+            actions.push(action);
 
-    players.forEach(arr =>{
-        arr.forEach(el =>{
-            el.Animation = new TweenMax.to(el.scale, 0.3, {
-                x: 0.0,
-                y: 0.0, 
-                ease: Power3.easeOut
-            });
-        })
-    });
+            // Write actions to file
+            writeToFile(actions.join("\n"));
 
-    setTimeout(()=>{
-        players.forEach(arr =>{
-            arr.forEach(el =>{
-                el.alpha = 0;
-            })
-        });
-    }, 100);
-    
-    let score = parseInt(scoreText.text);
-    if(scoreText == NaN){
-        scoreText.text = `Final score:\n ${lastScoreText}`;
-    }else{
-        scoreText.text = `Final score:\n ${score}`;
-    }
-    scoreText.style = {fontFamily : 'Arial', fontSize: 42, fill : 0xFFFFFF, align : 'center'};
-    scoreText.Animation = new TweenMax.to(scoreText, 1, {
-        x: playerWidth / 2,
-        y: playerHeigth / 4, 
-        ease: Power3.easeOut,
-    });
+            // Append the action to the blob
+            blob = new Blob([blob, action], { type: "text/plain" });
 
-    setTimeout(()=>{
-        players.forEach(arr =>{
-            arr.forEach(el =>{
-                el.scale.x = 0;
-                el.scale.y = 0;
-            })
-        });
-    }, 1000)
-    
+            // Proceed to the next level when any image is clicked
+            app.stage.removeChildren(); // Remove previous level images
+            if (levelIndex < levelData.length - 1) {
+              loadLevelImages(levelIndex + 1); // Load images for the next level
+            } else {
+              const message = new PIXI.Text("All levels completed!", {
+                fontFamily: "Arial",
+                fontSize: 36,
+                fill: 0xff0000,
+                align: "center",
+              });
+              message.anchor.set(0.5);
+              message.x = app.renderer.width / 2;
+              message.y = app.renderer.height / 4;
+              app.stage.addChild(message);
+              console.log("All levels completed!");
+              // Create a temporary anchor element to download the file
+              const downloadLink = document.createElement("a");
+              downloadLink.download = "playerActions.txt";
+              downloadLink.href = URL.createObjectURL(blob);
 
-    initRestartBtn();
-}
-
-function startTimer(){
-    let timer = setInterval(tick, 1000)
-    function tick(){
-        timerText.text = `${--time}`;
-        if(time == 0){
-            clearInterval(timer);
-            gameOver();
-        }
-    }
-}
-
-function initTimerText(){
-    timerText = new PIXI.Text(`${time}`,{fontFamily : 'Arial', fontSize: 24, fill : 0xFFFFFF});
-    timerText.anchor.set(0.5);
-    timerText.x = playerWidth * 0.65;
-    timerText.y = playerHeigth / 20;
-    app.stage.addChild(timerText);
-}
-
-function initScore(){
-    scoreText = new PIXI.Text('0',{fontFamily : 'Arial', fontSize: 24, fill : 0xFFFFFF, align : 'center'});
-    scoreText.anchor.set(0.5);
-    scoreText.x = playerWidth / 2;
-    scoreText.y = playerHeigth / 20;
-    app.stage.addChild(scoreText);
-}
-
-function createMap(players){
-    // let x = 10;
-    // let y = 40;
-    let x = (playerWidth / 2) - (MAP_SIZE / 2 * 65) * mobileAdaptive;
-    let y = playerHeigth / 5 * mobileAdaptive;
-
-    for (let i = 0; i < MAP_SIZE; i++) {
-
-        players[i] = [];
-        for (let j = 0; j < MAP_SIZE; j++) {
-
-            let random = Math.floor(Math.random() * colors.length); 
-            players[i][j] = new PIXI.Sprite.from(colors[random]);
-            players[i][j].scale.x = mobileAdaptive;
-            players[i][j].scale.y = mobileAdaptive;
-            // players[i][j].scale.x = 2;
-            // players[i][j].scale.y = 2;
-            players[i][j].interactive = true;
-            players[i][j].x = x;
-            players[i][j].y = y;
-            players[i][j].i = i;
-            players[i][j].j = j;
-            players[i][j].id = random;
-            players[i][j].Animation = null;
-            
-            
-            players[i][j].on('pointerdown', clickFunction.bind(this, players[i][j]));
-            
-            x += 70 * mobileAdaptive;
-
-            app.stage.addChild(players[i][j]);
-        }
-        y += 70 * mobileAdaptive;
-        x  = (playerWidth / 2) - (MAP_SIZE / 2 * 65) * mobileAdaptive;
-    }
-
-    analizHorizontalMap();
-    analizVerticalMap();
-    analizHorizontalMap(); //уменьшаем вероятность появления на карте тройки.
-}
-
-
-function clickFunction(player){
-    switch(playerClick){
-        case 2:{
-            playerClick = 1;
-            if(player.i == tempObj.i && player.j == tempObj.j){
-                 killPlayerAnimation(tempObj);
+              // Trigger a click event on the anchor element to initiate the download
+              downloadLink.click();
             }
-            
-            if(isNear(tempObj, player) && isThree(tempObj, player)){
-              
-                let iMinus = tempObj.i - player.i;
-                changeIandJ(tempObj, player);
-                playAnimationMove(tempObj, player);
-                swapObject(tempObj, player);
-                
-                if(isSoundPlay){
-                    goodChoiceSound.play();
-                }
-
-                isPlayerClick = true; 
-            }else{
-                if(!isNear(tempObj, player)){
-                    killPlayerAnimation(tempObj);
-                }else{
-                    badStepAnimation(tempObj, player);
-                }
-                if(isSoundPlay){
-                    noGoodChoiceSound.play();
-                }
-            }  
-
-            break;
+          });
         }
-        case 1:{
-            if(isPlayerClick){
-                return;
-            }
 
-            playerClick++;
-            tempObj = player;
-            playerAnimation(tempObj);
-            break;
+        // Add border only to the last image
+        if (i === levelImages.length - 1) {
+          const border = new PIXI.Graphics();
+          border.lineStyle(4, 0xff0000); // Border color and thickness
+          border.drawRect(
+            imageSprite.x - (imageSize / 2) * 1.2,
+            imageSprite.y - (imageSize / 2) * 1.2,
+            imageSize * 1.2,
+            imageSize * 1.2
+          );
+          app.stage.addChild(border);
         }
-    } 
-}
 
-function addScore(){
-    if(scoreText == NaN){
-        console.log("NaN addScore");
-        scoreText.text = `Final score:\n ${lastScoreText}`;
-        return;
+        app.stage.addChild(imageSprite); // Add image to the stage
+        images.push(imageSprite); // Store image sprites for later reference or manipulation
+      }
+
+      return images;
     }
 
-    lastScoreText = scoreText.text;
-    if(parseInt(timerText.text) > 0){
-        scoreText.text = (parseInt(scoreText.text) + 25).toString();
-        scoreText.Animation =  gsap.to(scoreText.scale, 0.3, {
-            x: 1.3,
-            y: 1.3, 
-            rotation: 0.45, 
-            repeatDelay: 0.05,
-            yoyo: true,
-            repeat: 1,
-            ease: "power2.inOut",
-        });
-    }
-}
-
-function renderMapUpdate(){    
-    // console.log('render map')
-    let yPos = [playerHeigth / 5 * mobileAdaptive];
-    // let x = (playerWidth / 2) - (MAP_SIZE / 2 * 65);
-    // let y = playerHeigth / 5;
-    for (let z = 0; z < MAP_SIZE-1; z++) {
-        yPos.push(yPos[z] + 70 * mobileAdaptive);
-    }
-
-    for (let i = 0; i < MAP_SIZE; i++) {
-        for (let j = 0; j < MAP_SIZE; j++) {
-            if(players[i][j].id == 9){
-                // players[i][j].x = 10 + j * 70;
-                // let x = (playerWidth / 2) - (MAP_SIZE / 2 * 65) * mobileAdaptive;
-                // let y = playerHeigth / 5 * mobileAdaptive;
-                // players[i][j].x = (playerWidth / 2) - (MAP_SIZE / 2 * 65 * mobileAdaptive) + (j * 70 * mobileAdaptive);
-                players[i][j].x = (playerWidth / 2) - (MAP_SIZE / 2 * 65 * mobileAdaptive) + j * 70 * mobileAdaptive;
-                players[i][j].y = yPos[i];
-                
-                //adaptive 
-                players[i][j].scale.x = mobileAdaptive;
-                players[i][j].scale.y = mobileAdaptive;
-
-                let random = Math.floor(Math.random() * colors.length);
-                if(j > 1){
-                    if(random == players[i][j-1].id && random == players[i][j-2].id){
-                        if(random < colors.length-1){
-                            random++;
-                        }else{
-                            random--;
-                        }
-                    }
-                }
-                players[i][j].id = random;
-                
-                players[i][j].texture = PIXI.Texture.from(colors[random]);
-
-                gsap.to(players[i][j].scale, 0.5, {
-                    x: 1 * mobileAdaptive, 
-                    y: 1 * mobileAdaptive, 
-                    ease: "power2.inOut",
-                });
-                gsap.from(players[i][j], 
-                {
-                    y: players[i][j].y-400, ease: "power2.inOut"
-                }, 
-                {
-                    y: players[i][j].y, alpha: 1, ease: "power2.inOut", duration: 0.5
-                })
-            }else{
-                // players[i][j].x = 10 + j * 70;
-                // players[i][j].x = ((playerWidth / 2) - (MAP_SIZE / 2 * 65 * mobileAdaptive) + j * 70) * mobileAdaptive;
-                players[i][j].x = (playerWidth / 2) - (MAP_SIZE / 2 * 65 * mobileAdaptive) + j * 70 * mobileAdaptive;
-                players[i][j].y = yPos[i];
-
-                players[i][j].alpha = 1;
-                players[i][j].texture = PIXI.Texture.from(colors[players[i][j].id]);
-                
-                //adaptive
-                players[i][j].scale.x = mobileAdaptive;
-                players[i][j].scale.y = mobileAdaptive;
-            } 
-        }
-    }
-
-    // let tempPlayersId = players.map(function(arr) {
-    //     return arr.map(el =>{
-    //         return el.id;
-    //     });
-    // });
-    // console.log(tempPlayersId);
-}
-
-function fallObjs(){
-    let pos = players.length - 1;
-    for (let i = 0; i < players.length; i++) {
-        pos = players.length-1;
-        for (let j = players.length-1; j >= 0; j--) {
-            if(players[j][i].id != 9){
-                changeIandJ(players[pos][i], players[j][i]);
-                swapObject(players[pos][i], players[j][i]);
-                pos--;
-            }
-        }
-        while(pos > -1){
-            players[pos--][i].id = 9;
-        }
-    }
-}
-
-function swapObject(tempObj, player){
-    let i = tempObj.i;
-    let j = tempObj.j;
-
-    tempObj.i = player.i;
-    tempObj.j = player.j;
-
-    player.i = i;
-    player.j = j;
-}
-
-function changeId(tempObj, player){
-    let tempID = tempObj.id;
-    tempObj.id = player.id;
-    player.id = tempID;
-}
-
-function deleteThree(){
-    let tempIDs = players.map(function(arr) {
-        return arr.map(el =>{
-            return el.id;
-        });
-    });
-
-    for (let i = 0; i < tempIDs.length; i++) {
-    
-        for (let j = 0; j < tempIDs.length; j++) {
-
-            let coll = 0;
-            
-            for (let z = 0; z < tempIDs.length; z++) {
-                if(tempIDs[i][j] == tempIDs[i][z] && tempIDs[i][j] == tempIDs[i][j+coll]){
-                    coll++;
-                }
-            }
-    
-            if(coll > 2){
-                for (let z = j; z < j + coll; z++) {
-                    players[i][z].id = 9;
-                }
-            }
-        }
-    }
-
-    for (let i = 0; i < tempIDs.length; i++) {   
-        for (let j = 0; j < tempIDs.length-2; j++) {
-            
-            let coll = 0;
-            
-            for (let z = 0; z < tempIDs.length; z++) {
-                if(j + coll > tempIDs.length-1){
-                    coll--;
-                }
-                if(tempIDs[j][i] == tempIDs[z][i] && tempIDs[j][i] == tempIDs[j+coll][i]){
-                    coll++;
-                }
-            }
-    
-            if(coll > 2){
-                for (let z = j; z < j + coll; z++) {
-                    players[z][i].id = 9;
-                }
-            }
-        }
-    }
-
-}
-
-function swapId(tempObj, player){
-    let tempID = tempObj.id;  
-
-    tempObj.id = player.id;
-    player.id = tempID;
-    
-    let tempIDs = [];
-    for (let i = 0; i < MAP_SIZE; i++) {
-        tempIDs[i] = [];
-       for (let j = 0; j < MAP_SIZE; j++) {
-           tempIDs[i][j] = players[i][j].id;
-       }
-    }
-
-    for (let i = 0; i < MAP_SIZE; i++) {
-        for (let j = 0; j < MAP_SIZE; j++) {
-            players[i][j].id = tempIDs[i][j];
-        }
-    }
-}
-
-function isThreeUpdate(){
-    let col = 0;
-    let tempPlayersId = players.map(function(arr) {
-        return arr.map(el =>{
-            return el.id;
-        });
-    });
-
-    for (let i = 0; i < tempPlayersId.length; i++) {
-        for (let j = 0; j < tempPlayersId[i].length; j++) {
-            if(tempPlayersId[i][j] == tempPlayersId[i][j+1] && tempPlayersId[i][j] == tempPlayersId[i][j+2]){
-                col++;
-            }
-        }
-    }
-
-    for (let i = 0; i < tempPlayersId.length; i++) {
-        for (let j = 0; j < tempPlayersId[i].length-2; j++) {
-            if(tempPlayersId[j][i] == tempPlayersId[j+1][i] && tempPlayersId[j][i] == tempPlayersId[j+2][i]){
-                col++;
-            }
-        }
-    }
-
-    if(col > 0){
-        return true;
-    }else{
-        return false;
-    }
-}
-
-function isThree(tempObj, player){
-    let col = 0;
-    let tempPlayersId = players.map(function(arr) {
-        return arr.map(el =>{
-            return el.id;
-        });
-    });
-    
-    tempPlayersId = swapObjs(tempObj, player, tempPlayersId);
-
-    for (let i = 0; i < tempPlayersId.length; i++) {
-        for (let j = 0; j < tempPlayersId[i].length; j++) {
-            if(tempPlayersId[i][j] == tempPlayersId[i][j+1] && tempPlayersId[i][j] == tempPlayersId[i][j+2]){
-                col++;
-            }
-        }
-    }
-
-    for (let i = 0; i < tempPlayersId.length; i++) {
-        for (let j = 0; j < tempPlayersId[i].length-2; j++) {
-            if(tempPlayersId[j][i] == tempPlayersId[j+1][i] && tempPlayersId[j][i] == tempPlayersId[j+2][i]){
-                col++;
-            }
-        }
-    }
-
-    if(col > 0){
-        return true;
-    }else{
-        return false;
-    }
-}
-
-function swapObjs(tempObj, player, tempPlayersId){   
-    let tempID = tempPlayersId[player.i][player.j];  
-    
-    tempPlayersId[player.i][player.j] = tempPlayersId[tempObj.i][tempObj.j];
-    tempPlayersId[tempObj.i][tempObj.j] = tempID;
-
-    return tempPlayersId;
-}
-
-function changeIandJ(tempObj, player){
-    let tempObject = tempObj;
-    let i = tempObj.i;
-    let j = tempObj.j;
-    
-    players[i][j] = player;
-    players[player.i][player.j] = tempObject;
-}
-
-function isNear(tempObj, player){
-    if((Math.abs(tempObj.i - player.i) == 1) ||  (Math.abs(tempObj.j - player.j) == 1)){
-        if((tempObj.i == player.i) || (tempObj.j == player.j)){
-            return true;
-        }
-    }
-}
-
-// Analiz Functions
-function analizHorizontalMap(){
-    for (let i = 0; i < MAP_SIZE; i++) {
-        for (let j = 2; j < MAP_SIZE; j++) {
-            if((players[i][j].id == players[i][j-1].id) && (players[i][j].id == players[i][j-2].id)){
-                let newId = (players[i][j].id + 1 < colors.length - 1 ? players[i][j].id + 1 : players[i][j].id - 1);
-                players[i][j].texture = PIXI.Texture.from(colors[newId]);
-                players[i][j].id = newId;
-            }
-        }
-    }
-}
-
-function analizVerticalMap(){
-    for (let i = 0; i < MAP_SIZE; i++) {
-        for (let j = 2; j < MAP_SIZE; j++) {
-            if((players[j][i].id == players[j-1][i].id) && (players[j][i].id == players[j-2][i].id)){
-                let newId = (players[j][i].id + 1 < colors.length - 1 ? players[j][i].id + 1 : players[j][i].id - 1);
-                players[j][i].texture = PIXI.Texture.from(colors[newId]);
-                players[j][i].id = newId;
-            }
-        }
-    }
-}
-
-// Sounds
-function initSoundBtn(){
-    
-    soundBtn = new PIXI.Sprite.from(onOrDisable[1]);
-    soundBtn.anchor.set(0.5);
-    soundBtn.x = playerWidth * 0.35;
-    soundBtn.y = playerHeigth / 20;
-    soundBtn.on('pointerdown', soundOfforOn);
-    soundBtn.interactive = true;
-    app.stage.addChild(soundBtn);
-
-    if(isSoundPlay){
-        soundBtn.texture = PIXI.Texture.from(onOrDisable[1]);
-    }else{
-        soundBtn.texture = PIXI.Texture.from(onOrDisable[0]);
-    }
-}
-
-function soundOfforOn(){
-    isSoundPlay = !isSoundPlay;
-    if(isSoundPlay){
-        mainSound.play();
-        soundBtn.texture = PIXI.Texture.from(onOrDisable[1]);
-    }else{
-        soundBtn.texture = PIXI.Texture.from(onOrDisable[0]);
-        mainSound.pause();
-    }
-}
-
-function initSound(){
-    mainSound = new Howl({
-        src: ['./sound/mainSound.mp3'],
-        loop: true,
-        volume: 0.8,
-    });  
-
-    goodChoiceSound = new Howl({
-        src: ['./sound/GoodChoice.mp3'],
-        volume: 0.5,
-    });  
-
-    noGoodChoiceSound = new Howl({
-        src: ['./sound/noGoodChoice.mp3'],
-        volume: 0.5,
-    });
-
-    theEndSound = new Howl({
-        src: ['./sound/theEnd.mp3'],
-        volume: 0.5,
-    });  
-}
-
-// Animations
-function fallAnimationUpdate(){
-    if(parseInt(timerText.text) > 0){
-        for(let i = MAP_SIZE - 2; i >= 0; i--){
-            for(let j = 0; j < MAP_SIZE; j++){
-                let fallTiles = freeSpaceBelow(i, j);
-                if(fallTiles > 0){
-                    gsap.to(players[i][j], 0.5, {
-                        y: players[i][j].y + fallTiles * 70 * mobileAdaptive,//70px = размер картинки + отступ  
-                        ease: "power2.inOut",
-                    }); 
-                }
-            }
-        }
-    }  
-}
-
-function freeSpaceBelow(row, col){
-    let result = 0;
-    for(let i = row + 1; i < MAP_SIZE; i++){
-        if(players[i][col].id == 9){
-            result++;
-        }
-    }
-    return result;
-}
-
-function deadAnimation(){
-    let tl = new TimelineLite();
-    for (let i = 0; i < MAP_SIZE; i++) {
-        for (let j = 0; j < MAP_SIZE; j++) {
-            if(players[i][j].id == 9 ){
-                addScore();
-                tl.staggerTo(players[i][j].scale, 0.1, {
-                    x: 0.0,
-                    y: 0.0,
-                    ease: Power3.easeOut, 
-               }, 0.05);
-            }
-        }
-    }
-}
-
-function playAnimationMove(tempObj, player){
-    let playerLastX = player.x;
-    let playerLastY = player.y;
-
-    let tempObjLastX = tempObj.x;
-    let tempObjLastY = tempObj.y;
-    
-    if((tempObj.j - player.j) == -1){
-        player.Animation = new TweenMax.to(player, 0.5, {
-            x: tempObjLastX, 
-            ease: Power3.easeOut
-        });
-
-        killPlayerAnimation(tempObj);
-        tempObj.Animation = new TweenMax.to(tempObj, 0.5, {
-            x: playerLastX, 
-            ease: Power3.easeOut
-        });
-    }else if((tempObj.j - player.j) == 1){
-        player.Animation = new TweenMax.to(player, 0.5, {
-            x: tempObj.x, 
-            ease: Power3.easeOut
-        });
-
-        killPlayerAnimation(tempObj);
-        tempObj.Animation = new TweenMax.to(tempObj, 0.5, {
-            x: playerLastX, 
-            ease: Power3.easeOut
-        });
-
-    }else if((tempObj.i - player.i) == 1){
-        player.Animation = new TweenMax.to(player, 0.5, {
-            y: tempObjLastY, 
-            ease: Power3.easeOut
-        });
-
-        killPlayerAnimation(tempObj);
-        tempObj.Animation = new TweenMax.to(tempObj, 0.5, {
-            y: playerLastY, 
-            ease: Power3.easeOut
-        });
-    }else if((tempObj.i - player.i) == -1){
-        player.Animation = new TweenMax.to(player, 0.5, {
-            y: tempObjLastY, 
-            ease: Power3.easeOut
-        });
-
-        killPlayerAnimation(tempObj);
-        tempObj.Animation = new TweenMax.to(tempObj, 0.5, {
-            y: playerLastY, 
-            ease: Power3.easeOut
-        });
-    }
-}
-
-function badStepAnimation(tempObj, player){
-    let playerLastX = player.x;
-    let playerLastY = player.y;
-
-    let tempObjLastX = tempObj.x;
-    let tempObjLastY = tempObj.y;
-    
-    if((tempObj.j - player.j) == -1){
-        player.Animation = new TweenMax.to(player, 0.5, {
-            x: tempObjLastX, 
-            ease: Power3.easeOut,
-        });
-
-        killPlayerAnimation(tempObj);
-        tempObj.Animation = new TweenMax.to(tempObj, 0.5, {
-            x: playerLastX, 
-            yoyo: true,
-            ease: Power3.easeOut,
-        });
-
-        setTimeout(()=>{
-            player.Animation = new TweenMax.to(player, 0.5, {
-                x: playerLastX, 
-                ease: Power3.easeOut,
-            });
-    
-            tempObj.Animation = new TweenMax.to(tempObj, 0.5, {
-                x: tempObjLastX, 
-                yoyo: true,
-                ease: Power3.easeOut,
-            });
-        }, 500); 
-    }else if((tempObj.j - player.j) == 1){
-        player.Animation = new TweenMax.to(player, 0.5, {
-            x: tempObj.x, 
-            ease: Power3.easeOut
-        });
-
-        killPlayerAnimation(tempObj);
-        tempObj.Animation = new TweenMax.to(tempObj, 0.5, {
-            x: playerLastX, 
-            ease: Power3.easeOut
-        });
-
-        setTimeout(()=>{
-            player.Animation = new TweenMax.to(player, 0.5, {
-                x: playerLastX, 
-                ease: Power3.easeOut,
-            });
-    
-            tempObj.Animation = new TweenMax.to(tempObj, 0.5, {
-                x: tempObjLastX, 
-                yoyo: true,
-                ease: Power3.easeOut,
-            });
-        }, 500);
-    }else if((tempObj.i - player.i) == 1){
-        player.Animation = new TweenMax.to(player, 0.5, {
-            y: tempObjLastY, 
-            ease: Power3.easeOut
-        });
-
-        killPlayerAnimation(tempObj);
-        tempObj.Animation = new TweenMax.to(tempObj, 0.5, {
-            y: playerLastY, 
-            ease: Power3.easeOut
-        });
-
-        setTimeout(()=>{
-            player.Animation = new TweenMax.to(player, 0.5, {
-                y: playerLastY, 
-                ease: Power3.easeOut,
-            });
-    
-            tempObj.Animation = new TweenMax.to(tempObj, 0.5, {
-                y: tempObjLastY, 
-                yoyo: true,
-                ease: Power3.easeOut,
-            });
-        }, 500);
-
-    }else if((tempObj.i - player.i) == -1){
-        player.Animation = new TweenMax.to(player, 0.5, {
-            y: tempObjLastY, 
-            ease: Power3.easeOut
-        });
-
-        killPlayerAnimation(tempObj);
-        tempObj.Animation = new TweenMax.to(tempObj, 0.5, {
-            y: playerLastY, 
-            ease: Power3.easeOut
-        });
-
-        setTimeout(()=>{
-            player.Animation = new TweenMax.to(player, 0.5, {
-                y: playerLastY, 
-                ease: Power3.easeOut,
-            });
-    
-            tempObj.Animation = new TweenMax.to(tempObj, 0.5, {
-                y: tempObjLastY, 
-                yoyo: true,
-                ease: Power3.easeOut,
-            });
-        }, 500);
-    }
-}
-
-function playerAnimation(player){
-    player.Animation = new TweenMax.to(player.scale, 0.4, {
-        x: 1.3 * mobileAdaptive, 
-        y: 1.3 * mobileAdaptive, 
-        repeat: -1,
-        pixi: { tint: 0x2196F3 },
-        repeatDelay: 0.05,
-        ease: "power2.inOut",
-        yoyo: true,
-    });
-}
-
-function killPlayerAnimation(player){
-    if(player.Animation != null){
-        player.Animation.kill();
-        player.Animation = new TweenMax.to(player.scale, 0.7, {
-            x: 1.0 * mobileAdaptive, 
-            y: 1.0 * mobileAdaptive, 
-            pixi: { tint: 0x2196F3 },
-            repeatDelay: 0.2,
-            ease: "power2.inOut",
-            yoyo: true,
-        });
-    }else{
-        player.Animation = new TweenMax.to(player.scale, 0.7, {
-            x: 1.0, 
-            y: 1.0, 
-            pixi: { tint: 0x2196F3 },
-            repeatDelay: 0.2,
-            ease: "power2.inOut",
-            yoyo: true,
-        });
-    }   
+    // Initial load of level 0
+    loadLevelImages(0);
+  });
 }

@@ -1,0 +1,5 @@
+1,images/bird1.jpg,images/bird2.jpg,images/bird3.jpg,images/bird4.jpg,images/bird5.jpg,images/bird6.jpg,images/bird7.jpg,6
+2,images/lion1.jpg,images/lion2.jpg,images/lion3.jpg,images/lion4.jpg,images/lion5.jpg,images/lion6.jpg,images/lion7.jpg,2
+3,images/duck1.jpg,images/duck2.jpg,images/duck3.jpg,images/duck4.jpg,images/duck5.jpg,images/duck6.jpg,images/duck7.jpg,4
+4,images/cat1.jpg,images/cat2.jpg,images/cat3.jpg,images/cat4.jpg,images/cat5.jpg,images/cat6.jpg,images/cat7.jpg,5
+5,images/dog1.jpg,images/dog2.jpg,images/dog3.jpg,images/dog4.jpg,images/dog5.jpg,images/dog6.jpg,images/dog7.jpg,1
