@@ -15,7 +15,8 @@
   "devDependencies": {
     "cordova-android": "^12.0.1",
     "cordova-browser": "^7.0.0",
-    "cordova-plugin-file": "^8.0.1"
+    "cordova-plugin-file": "^8.0.1",
+    "cordova-plugin-file-transfer": "^2.0.0"
   },
   "cordova": {
     "platforms": [
@@ -23,7 +24,8 @@
       "android"
     ],
     "plugins": {
-      "cordova-plugin-file": {}
+      "cordova-plugin-file": {},
+      "cordova-plugin-file-transfer": {}
     }
   }
 }

@@ -1,40 +1,95 @@
 // Define the file path
-const filePath = "actions.txt";
+const filePath = "./actions.txt";
 
 // Initialize an empty array to store actions
 let actions = [];
 
-function writeToFile(content) {
-  const fileName = "actions.txt";
+document.addEventListener("deviceready", onDeviceReady, false);
+function createTextFile(fileName, content, successCallback, errorCallback) {
   window.resolveLocalFileSystemURL(
-    cordova.file.externalDataDirectory,
+    cordova.file.dataDirectory,
     function (dirEntry) {
       dirEntry.getFile(
         fileName,
-        { create: true },
+        { create: true, exclusive: false },
         function (fileEntry) {
           fileEntry.createWriter(function (fileWriter) {
             fileWriter.onwriteend = function () {
-              console.log("Write completed.");
+              console.log("Text file created successfully.");
+              if (successCallback) {
+                successCallback(fileEntry.toURL());
+              }
             };
 
             fileWriter.onerror = function (e) {
-              console.log("Write failed: " + e.toString());
+              console.error("Error writing to file:", e.toString());
+              if (errorCallback) {
+                errorCallback(e.toString());
+              }
             };
 
-            const blob = new Blob([content], { type: "text/plain" });
-            fileWriter.write(blob);
-          }, errorHandler);
+            // Write the content to the file
+            fileWriter.write(new Blob([content], { type: "text/plain" }));
+          }, errorCallback);
         },
-        errorHandler
+        errorCallback
       );
     },
-    errorHandler
+    errorCallback
+  );
+}
+function downloadFile(url, targetPath, onSuccess, onError) {
+  var fileTransfer = new FileTransfer();
+
+  fileTransfer.download(
+    url,
+    targetPath,
+    function (entry) {
+      console.log("File downloaded successfully: " + entry.toURL());
+      if (onSuccess) {
+        onSuccess(entry.toURL());
+      }
+    },
+    function (error) {
+      console.error("Error downloading file: " + JSON.stringify(error));
+      if (onError) {
+        onError(error);
+      }
+    },
+    true, // Set to true to trust self-signed SSL certificates, use false otherwise
+    {} // Optional headers
   );
 }
 
-function errorHandler(error) {
-  console.error("File error:", error);
+// Example usage:
+var fileName = "sample.txt";
+var fileContent = "Hello, this is the content of the text file!";
+var fileUrl = "https://example.com/path/to/your/sample.txt";
+var targetPath = cordova.file.dataDirectory + fileName;
+
+function onDeviceReady() {
+  createTextFile(
+    fileName,
+    fileContent,
+    function (createdFilePath) {
+      downloadFile(
+        createdFilePath,
+        targetPath,
+        function (downloadedFilePath) {
+          // Handle success, use downloadedFilePath as needed
+          console.log("Downloaded file path:", downloadedFilePath);
+        },
+        function (error) {
+          // Handle download error
+          console.error("Download error:", error);
+        }
+      );
+    },
+    function (error) {
+      // Handle file creation error
+      console.error("File creation error:", error);
+    }
+  );
 }
 
 let playerHeigth = window.innerHeight;
@@ -60,6 +115,7 @@ function getGameID(GameID) {
 }
 
 window.onload = function () {
+  //   writeToFile("GameID: " + GameID);
   // Add event listener to the registration form submission
   document
     .getElementById("registration-form")
@@ -165,7 +221,7 @@ function initChooseTime() {
             actions.push(action);
 
             // Write actions to file
-            writeToFile(actions.join("\n"));
+            // writeToFile(actions.join("\n"));
 
             // Append the action to the blob
             blob = new Blob([blob, action], { type: "text/plain" });
