@@ -136,6 +136,7 @@ function initChooseTime() {
             if (levelIndex < levelData.length - 1) {
               loadLevelImages(levelIndex + 1); // Load images for the next level
             } else {
+              
               // Display the results when all levels are completed
               // for (let i = 0; i < actions.length; i++) {
               //   const message = new PIXI.Text(actions[i], {
