@@ -137,18 +137,18 @@ function initChooseTime() {
               loadLevelImages(levelIndex + 1); // Load images for the next level
             } else {
               // Display the results when all levels are completed
-              for (let i = 0; i < actions.length; i++) {
-                const message = new PIXI.Text(actions[i], {
-                  fontFamily: "Arial",
-                  fontSize: 24,
-                  fill: 0xffffff,
-                  align: "center",
-                });
-                message.anchor.set(0.5);
-                message.x = app.renderer.width / 2;
-                message.y = app.renderer.height / 10 + i * 120;
-                app.stage.addChild(message);
-              }
+              // for (let i = 0; i < actions.length; i++) {
+              //   const message = new PIXI.Text(actions[i], {
+              //     fontFamily: "Arial",
+              //     fontSize: 24,
+              //     fill: 0xffffff,
+              //     align: "center",
+              //   });
+              //   message.anchor.set(0.5);
+              //   message.x = app.renderer.width / 2;
+              //   message.y = app.renderer.height / 10 + i * 120;
+              //   app.stage.addChild(message);
+              // }
               // const message = new PIXI.Text("All levels completed!", {
               //   fontFamily: "Arial",
               //   fontSize: 36,
